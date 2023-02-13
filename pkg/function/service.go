@@ -192,8 +192,7 @@ func (fs *Service) ReduceFn(stream functionpb.UserDefinedFunction_ReduceFnServer
 	md = NewMetadata(iw)
 
 	var (
-		datumList []*functionpb.Datum
-		wg        sync.WaitGroup
+		wg sync.WaitGroup
 	)
 
 	// read messages from the stream and write the messages to corresponding channels
@@ -225,14 +224,15 @@ func (fs *Service) ReduceFn(stream functionpb.UserDefinedFunction_ReduceFnServer
 			go func(key string, ch chan Datum) {
 				defer wg.Done()
 				messages := fs.Reducer.HandleDo(ctx, key, ch, md)
+				datumList := buildDatumList(messages)
 				mu.Lock()
 				defer mu.Unlock()
-				for _, msg := range messages {
-					datumList = append(datumList, &functionpb.Datum{
-						Key:   msg.Key,
-						Value: msg.Value,
-					})
+				err := stream.Send(datumList)
+				if err != nil {
+					println("Error while writing data to client - ", err.Error())
+					return
 				}
+
 			}(d.Key, ch)
 		}
 		ch <- hd
@@ -240,9 +240,19 @@ func (fs *Service) ReduceFn(stream functionpb.UserDefinedFunction_ReduceFnServer
 
 	// wait until all the HandleDo return
 	wg.Wait()
-	return stream.SendAndClose(&functionpb.DatumList{
-		Elements: datumList,
-	})
+	return nil
+}
+
+func buildDatumList(messages Messages) *functionpb.DatumList {
+	datumList := &functionpb.DatumList{}
+	for _, msg := range messages {
+		datumList.Elements = append(datumList.Elements, &functionpb.Datum{
+			Key:   msg.Key,
+			Value: msg.Value,
+		})
+	}
+
+	return datumList
 }
 
 func closeChannels(chanMap map[string]chan Datum) {

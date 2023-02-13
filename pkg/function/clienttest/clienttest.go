@@ -3,6 +3,7 @@ package clienttest
 import (
 	"context"
 	"fmt"
+	"io"
 
 	functionpb "github.com/numaproj/numaflow-go/pkg/apis/proto/function/v1"
 	"github.com/numaproj/numaflow-go/pkg/apis/proto/function/v1/funcmock"
@@ -56,20 +57,39 @@ func (c *client) MapTFn(ctx context.Context, datum *functionpb.Datum) ([]*functi
 }
 
 // ReduceFn applies a reduce function to a datum stream.
-func (c *client) ReduceFn(ctx context.Context, datumStreamCh <-chan *functionpb.Datum) ([]*functionpb.Datum, error) {
+func (c *client) ReduceFn(ctx context.Context, datumStreamCh <-chan *functionpb.Datum) (<-chan *functionpb.DatumList, error) {
+	outputCh := make(chan *functionpb.DatumList)
+
 	stream, err := c.grpcClt.ReduceFn(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to execute c.grpcClt.ReduceFn(): %w", err)
 	}
-	for datum := range datumStreamCh {
-		if err := stream.Send(datum); err != nil {
-			return nil, fmt.Errorf("failed to execute stream.Send(%v): %w", datum, err)
+	go func() {
+		for datum := range datumStreamCh {
+			if err := stream.Send(datum); err != nil {
+				// TODO: handle error
+			}
 		}
-	}
-	reducedDatumList, err := stream.CloseAndRecv()
-	if err != nil {
-		return nil, fmt.Errorf("failed to execute stream.CloseAndRecv(): %w", err)
-	}
+		err := stream.CloseSend()
+		if err != nil {
+			return
+		}
+	}()
 
-	return reducedDatumList.GetElements(), nil
+	go func() {
+		for {
+			resp, err := stream.Recv()
+			if err == io.EOF {
+				close(outputCh)
+				return
+			}
+			if err != nil {
+				// TODO: handle error
+				return
+			}
+			outputCh <- resp
+		}
+	}()
+
+	return outputCh, nil
 }
