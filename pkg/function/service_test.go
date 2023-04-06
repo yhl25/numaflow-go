@@ -25,14 +25,14 @@ type fields struct {
 
 type UserDefinedFunctionReduceFnServerTest struct {
 	ctx      context.Context
-	inputCh  chan *functionpb.Datum
-	outputCh chan *functionpb.DatumList
+	inputCh  chan *functionpb.DatumRequest
+	outputCh chan *functionpb.DatumResponseList
 	grpc.ServerStream
 }
 
 func NewUserDefinedFunctionReduceFnServerTest(ctx context.Context,
-	inputCh chan *functionpb.Datum,
-	outputCh chan *functionpb.DatumList) *UserDefinedFunctionReduceFnServerTest {
+	inputCh chan *functionpb.DatumRequest,
+	outputCh chan *functionpb.DatumResponseList) *UserDefinedFunctionReduceFnServerTest {
 	return &UserDefinedFunctionReduceFnServerTest{
 		ctx:      ctx,
 		inputCh:  inputCh,
@@ -40,12 +40,12 @@ func NewUserDefinedFunctionReduceFnServerTest(ctx context.Context,
 	}
 }
 
-func (u *UserDefinedFunctionReduceFnServerTest) Send(list *functionpb.DatumList) error {
+func (u *UserDefinedFunctionReduceFnServerTest) Send(list *functionpb.DatumResponseList) error {
 	u.outputCh <- list
 	return nil
 }
 
-func (u *UserDefinedFunctionReduceFnServerTest) Recv() (*functionpb.Datum, error) {
+func (u *UserDefinedFunctionReduceFnServerTest) Recv() (*functionpb.DatumRequest, error) {
 	val, ok := <-u.inputCh
 	if !ok {
 		return val, io.EOF
@@ -60,13 +60,13 @@ func (u *UserDefinedFunctionReduceFnServerTest) Context() context.Context {
 func TestService_MapFn(t *testing.T) {
 	type args struct {
 		ctx context.Context
-		d   *functionpb.Datum
+		d   *functionpb.DatumRequest
 	}
 	tests := []struct {
 		name    string
 		fields  fields
 		args    args
-		want    *functionpb.DatumList
+		want    *functionpb.DatumResponseList
 		wantErr bool
 	}{
 		{
@@ -79,15 +79,15 @@ func TestService_MapFn(t *testing.T) {
 			},
 			args: args{
 				ctx: context.Background(),
-				d: &functionpb.Datum{
+				d: &functionpb.DatumRequest{
 					Keys:      []string{"client"},
 					Value:     []byte(`test`),
 					EventTime: &functionpb.EventTime{EventTime: timestamppb.New(time.Time{})},
 					Watermark: &functionpb.Watermark{Watermark: timestamppb.New(time.Time{})},
 				},
 			},
-			want: &functionpb.DatumList{
-				Elements: []*functionpb.Datum{
+			want: &functionpb.DatumResponseList{
+				Elements: []*functionpb.DatumResponse{
 					{
 						Keys:  []string{"client_test"},
 						Value: []byte(`test`),
@@ -106,15 +106,15 @@ func TestService_MapFn(t *testing.T) {
 			},
 			args: args{
 				ctx: context.Background(),
-				d: &functionpb.Datum{
+				d: &functionpb.DatumRequest{
 					Keys:      []string{"client"},
 					Value:     []byte(`test`),
 					EventTime: &functionpb.EventTime{EventTime: timestamppb.New(time.Time{})},
 					Watermark: &functionpb.Watermark{Watermark: timestamppb.New(time.Time{})},
 				},
 			},
-			want: &functionpb.DatumList{
-				Elements: []*functionpb.Datum{
+			want: &functionpb.DatumResponseList{
+				Elements: []*functionpb.DatumResponse{
 					{
 						Keys:  []string{ALL},
 						Value: []byte(`test`),
@@ -132,15 +132,15 @@ func TestService_MapFn(t *testing.T) {
 			},
 			args: args{
 				ctx: context.Background(),
-				d: &functionpb.Datum{
+				d: &functionpb.DatumRequest{
 					Keys:      []string{"client"},
 					Value:     []byte(`test`),
 					EventTime: &functionpb.EventTime{EventTime: timestamppb.New(time.Time{})},
 					Watermark: &functionpb.Watermark{Watermark: timestamppb.New(time.Time{})},
 				},
 			},
-			want: &functionpb.DatumList{
-				Elements: []*functionpb.Datum{
+			want: &functionpb.DatumResponseList{
+				Elements: []*functionpb.DatumResponse{
 					{
 						Keys:  []string{DROP},
 						Value: []byte{},
@@ -176,7 +176,7 @@ func TestService_MapFn(t *testing.T) {
 func TestService_MapTFn(t *testing.T) {
 	type args struct {
 		ctx context.Context
-		d   *functionpb.Datum
+		d   *functionpb.DatumRequest
 	}
 
 	testTime := time.Date(2021, 8, 15, 14, 30, 45, 100, time.Local)
@@ -184,7 +184,7 @@ func TestService_MapTFn(t *testing.T) {
 		name    string
 		fields  fields
 		args    args
-		want    *functionpb.DatumList
+		want    *functionpb.DatumResponseList
 		wantErr bool
 	}{
 		{
@@ -197,15 +197,15 @@ func TestService_MapTFn(t *testing.T) {
 			},
 			args: args{
 				ctx: context.Background(),
-				d: &functionpb.Datum{
+				d: &functionpb.DatumRequest{
 					Keys:      []string{"client"},
 					Value:     []byte(`test`),
 					EventTime: &functionpb.EventTime{EventTime: timestamppb.New(time.Time{})},
 					Watermark: &functionpb.Watermark{Watermark: timestamppb.New(time.Time{})},
 				},
 			},
-			want: &functionpb.DatumList{
-				Elements: []*functionpb.Datum{
+			want: &functionpb.DatumResponseList{
+				Elements: []*functionpb.DatumResponse{
 					{
 						EventTime: &functionpb.EventTime{EventTime: timestamppb.New(testTime)},
 						Keys:      []string{"client_test"},
@@ -225,15 +225,15 @@ func TestService_MapTFn(t *testing.T) {
 			},
 			args: args{
 				ctx: context.Background(),
-				d: &functionpb.Datum{
+				d: &functionpb.DatumRequest{
 					Keys:      []string{"client"},
 					Value:     []byte(`test`),
 					EventTime: &functionpb.EventTime{EventTime: timestamppb.New(time.Time{})},
 					Watermark: &functionpb.Watermark{Watermark: timestamppb.New(time.Time{})},
 				},
 			},
-			want: &functionpb.DatumList{
-				Elements: []*functionpb.Datum{
+			want: &functionpb.DatumResponseList{
+				Elements: []*functionpb.DatumResponse{
 					{
 						EventTime: &functionpb.EventTime{EventTime: timestamppb.New(testTime)},
 						Keys:      []string{ALL},
@@ -252,15 +252,15 @@ func TestService_MapTFn(t *testing.T) {
 			},
 			args: args{
 				ctx: context.Background(),
-				d: &functionpb.Datum{
+				d: &functionpb.DatumRequest{
 					Keys:      []string{"client"},
 					Value:     []byte(`test`),
 					EventTime: &functionpb.EventTime{EventTime: timestamppb.New(time.Time{})},
 					Watermark: &functionpb.Watermark{Watermark: timestamppb.New(time.Time{})},
 				},
 			},
-			want: &functionpb.DatumList{
-				Elements: []*functionpb.Datum{
+			want: &functionpb.DatumResponseList{
+				Elements: []*functionpb.DatumResponse{
 					{
 						EventTime: &functionpb.EventTime{EventTime: timestamppb.New(time.Time{})},
 						Keys:      []string{DROP},
@@ -299,8 +299,8 @@ func TestService_ReduceFn(t *testing.T) {
 	tests := []struct {
 		name        string
 		fields      fields
-		input       []*functionpb.Datum
-		expected    *functionpb.DatumList
+		input       []*functionpb.DatumRequest
+		expected    *functionpb.DatumResponseList
 		expectedErr bool
 	}{
 		{
@@ -315,7 +315,7 @@ func TestService_ReduceFn(t *testing.T) {
 					return MessagesBuilder().Append(MessageTo([]string{keys[0] + "_test"}, []byte(strconv.Itoa(sum))))
 				}),
 			},
-			input: []*functionpb.Datum{
+			input: []*functionpb.DatumRequest{
 				{
 					Keys:      []string{"client"},
 					Value:     []byte(strconv.Itoa(10)),
@@ -335,8 +335,8 @@ func TestService_ReduceFn(t *testing.T) {
 					Watermark: &functionpb.Watermark{Watermark: timestamppb.New(time.Time{})},
 				},
 			},
-			expected: &functionpb.DatumList{
-				Elements: []*functionpb.Datum{
+			expected: &functionpb.DatumResponseList{
+				Elements: []*functionpb.DatumResponse{
 					{
 						Keys:  []string{"client_test"},
 						Value: []byte(strconv.Itoa(60)),
@@ -357,7 +357,7 @@ func TestService_ReduceFn(t *testing.T) {
 					return MessagesBuilder().Append(MessageTo([]string{keys[0] + "_test"}, []byte(strconv.Itoa(sum))))
 				}),
 			},
-			input: []*functionpb.Datum{
+			input: []*functionpb.DatumRequest{
 				{
 					Keys:      []string{"client1"},
 					Value:     []byte(strconv.Itoa(10)),
@@ -395,8 +395,8 @@ func TestService_ReduceFn(t *testing.T) {
 					Watermark: &functionpb.Watermark{Watermark: timestamppb.New(time.Time{})},
 				},
 			},
-			expected: &functionpb.DatumList{
-				Elements: []*functionpb.Datum{
+			expected: &functionpb.DatumResponseList{
+				Elements: []*functionpb.DatumResponse{
 					{
 						Keys:  []string{"client1_test"},
 						Value: []byte(strconv.Itoa(20)),
@@ -425,7 +425,7 @@ func TestService_ReduceFn(t *testing.T) {
 					return MessagesBuilder().Append(MessageToAll([]byte(strconv.Itoa(sum))))
 				}),
 			},
-			input: []*functionpb.Datum{
+			input: []*functionpb.DatumRequest{
 				{
 					Keys:      []string{"client"},
 					Value:     []byte(strconv.Itoa(10)),
@@ -445,8 +445,8 @@ func TestService_ReduceFn(t *testing.T) {
 					Watermark: &functionpb.Watermark{Watermark: timestamppb.New(time.Time{})},
 				},
 			},
-			expected: &functionpb.DatumList{
-				Elements: []*functionpb.Datum{
+			expected: &functionpb.DatumResponseList{
+				Elements: []*functionpb.DatumResponse{
 					{
 						Keys:  []string{ALL},
 						Value: []byte(strconv.Itoa(60)),
@@ -467,7 +467,7 @@ func TestService_ReduceFn(t *testing.T) {
 					return MessagesBuilder().Append(MessageToDrop())
 				}),
 			},
-			input: []*functionpb.Datum{
+			input: []*functionpb.DatumRequest{
 				{
 					Keys:      []string{"client"},
 					Value:     []byte(strconv.Itoa(10)),
@@ -487,8 +487,8 @@ func TestService_ReduceFn(t *testing.T) {
 					Watermark: &functionpb.Watermark{Watermark: timestamppb.New(time.Time{})},
 				},
 			},
-			expected: &functionpb.DatumList{
-				Elements: []*functionpb.Datum{
+			expected: &functionpb.DatumResponseList{
+				Elements: []*functionpb.DatumResponse{
 					{
 						Keys:  []string{DROP},
 						Value: []byte{},
@@ -510,9 +510,9 @@ func TestService_ReduceFn(t *testing.T) {
 			// instead of the regular outgoing context in the real gRPC connection.
 			ctx := grpcmd.NewIncomingContext(context.Background(), grpcmd.New(map[string]string{WinStartTime: "60000", WinEndTime: "120000"}))
 
-			inputCh := make(chan *functionpb.Datum)
-			outputCh := make(chan *functionpb.DatumList)
-			result := &functionpb.DatumList{}
+			inputCh := make(chan *functionpb.DatumRequest)
+			outputCh := make(chan *functionpb.DatumResponseList)
+			result := &functionpb.DatumResponseList{}
 
 			udfReduceFnStream := NewUserDefinedFunctionReduceFnServerTest(ctx, inputCh, outputCh)
 
